@@ -54,7 +54,7 @@ export async function translateText(input: string, source: string, target: strin
 
 export async function synthesizeSpeech(text: string, language: string): Promise<{ audioBase64: string }> {
   if (text.length > 2500) throw failure('Text exceeds the 2,500 character speech limit.');
-  const response = await call('/text-to-speech', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, language_code: language, model: 'bulbul:v4-flash', speaker: language === 'hi-IN' ? 'simran' : 'sanchita_en_insurance', output_audio_codec: 'wav' }) }, 'tts', 20_000);
+  const response = await call('/text-to-speech', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, language_code: language, model: 'bulbul:v4-flash', speaker: language === 'hi-IN' ? 'ritu_hi_insurance' : 'sanchita_en_insurance', output_audio_codec: 'wav' }) }, 'tts', 20_000);
   const body = await response.json() as { audios?: string[] };
   if (!body.audios?.[0]) throw failure('Sarvam did not return playable audio.', 'Use device speech in demo mode.');
   return { audioBase64: body.audios[0] };

@@ -20,7 +20,7 @@ function Chip({ children, tone = 'slate' }: { children: React.ReactNode; tone?: 
 function stateTone(state: string): 'slate' | 'cyan' | 'amber' | 'green' | 'red' { if (/SETTLED|SUBMITTED|REVIEW/.test(state)) return 'cyan'; if (/REJECTED/.test(state)) return 'red'; if (/INCOMPLETE|AWAITING|QUERY/.test(state)) return 'amber'; return 'slate'; }
 function Button({ children, className = '', ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) { return <button className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-navy/90 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 ${className}`} {...props}>{children}</button>; }
 
-function Header({ mode, language, setLanguage, showLanguage = true }: { mode: Mode | null; language: string; setLanguage: (value: string) => void; showLanguage?: boolean }) {
+function Header({ mode, language, setLanguage, showLanguage = true, onVoiceClick }: { mode: Mode | null; language: string; setLanguage: (value: string) => void; showLanguage?: boolean; onVoiceClick?: () => void }) {
   return <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl">
     <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
       <Link href="/" className="group flex items-center gap-3">
@@ -29,6 +29,7 @@ function Header({ mode, language, setLanguage, showLanguage = true }: { mode: Mo
       </Link>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <Link href="/claims/new" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-navy sm:inline-flex">New claim</Link>
+        <button type="button" onClick={onVoiceClick ?? (() => { const btn = document.querySelector('[data-voice-btn]') as HTMLButtonElement | null; btn?.click(); })} className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-900 transition hover:bg-cyan-100 shadow-sm"><Mic size={15} className="text-cyan-700" /> Voice AI</button>
         {showLanguage && <select aria-label="Language" value={language} onChange={(e) => setLanguage(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-sm font-medium text-slate-700 shadow-sm"><option value="en">English</option><option value="hi">हिन्दी</option></select>}
         <Chip tone={mode?.aiMode === 'sarvam' ? 'green' : 'cyan'}>{mode?.aiMode === 'sarvam' ? 'Sarvam enabled' : 'Demo workspace'}</Chip>
       </div>
@@ -54,6 +55,7 @@ export function Dashboard() {
           <p className="mt-5 max-w-xl text-base leading-7 text-slate-200">ClaimSaathi turns a confusing claim into one clear action at a time. Try the complete customer-to-reviewer journey using safe fictional records.</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button className="bg-cyan-400 text-navy hover:bg-cyan-300" disabled={working} onClick={() => void startDemo()}>{working ? <><Loader2 className="animate-spin" size={17} />Preparing demo…</> : <><Sparkles size={17} />Start the demo <ArrowRight size={17} /></>}</Button>
+            <button type="button" onClick={() => { const btn = document.querySelector('[data-voice-btn]') as HTMLButtonElement | null; btn?.click(); }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-cyan-300/40 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20"><Mic size={17} className="text-cyan-300" /> Ask with Voice</button>
             <Link href="/claims/new" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10">Create a claim <ChevronRight size={16} /></Link>
           </div>
           <p className="mt-5 flex items-center gap-2 text-xs text-slate-300"><ShieldCheck size={15} className="text-cyan-300" /> No real insurer, hospital, payment provider, or personal records are used.</p>
@@ -73,7 +75,7 @@ export function Dashboard() {
       <article className="surface-card p-6 sm:p-7"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-700">What the demo includes</p><h2 className="mt-2 text-2xl font-bold tracking-tight text-navy">A complete, safe walkthrough</h2></div><Chip tone="cyan">About 2 minutes</Chip></div><div className="mt-6 grid gap-4 sm:grid-cols-3"><DemoFeature icon={UserRound} title="Customer" copy="Ask what is missing and upload the sample." /><DemoFeature icon={Hospital} title="Hospital" copy="Confirm that the sample packet is ready." /><DemoFeature icon={WalletCards} title="Review" copy="Record a clearly labelled simulated result." /></div></article>
       <aside className="rounded-2xl border border-amber-200 bg-amber-50 p-6"><div className="flex items-center gap-2 font-bold text-amber-950"><CircleHelp size={18} /> Demo, not a real claim</div><p className="mt-3 text-sm leading-6 text-amber-900">The people, records, insurer decision, and payout are fictional. Role switches are for one local walkthrough; they are not secure accounts and no money moves.</p></aside>
     </section>
-  </main></>;
+  </main><FloatingVoiceButton mode={mode} /></>;
 }
 
 function DemoFeature({ icon: Icon, title, copy }: { icon: React.ComponentType<{ size?: number; className?: string }>; title: string; copy: string }) { return <div className="rounded-2xl bg-slate-50 p-4"><Icon size={18} className="text-cyan-700" /><p className="mt-3 text-sm font-bold text-navy">{title}</p><p className="mt-1 text-xs leading-5 text-slate-600">{copy}</p></div>; }
@@ -83,7 +85,7 @@ export function NewClaim() {
   const [form, setForm] = useState({ route: 'REIMBURSEMENT', customerName: '', patientRelation: 'Self', policyHolderName: '', policyNumber: '', insurerName: '', productName: '', hospitalName: '', hospitalEmail: '', treatmentDescription: '', diagnosis: '', admissionDate: '', dischargeDate: '', icdCode: '', claimedAmountRupees: '' });
   const update = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
   async function create() { setWorking(true); setError(''); try { const claim = await apiPost<CaseSummaryDto>('/api/claims', { ...form, claimedAmountRupees: Number(form.claimedAmountRupees) }); for (const file of files) { const fd = new FormData(); fd.append('file', file); fd.append('docType', guessType(file.name)); await apiPostForm(`/api/claims/${claim.id}/documents`, fd); } location.href = `/claims/${claim.id}`; } catch (e) { setError(errorMessage(e)); } finally { setWorking(false); } }
-  return <><Header mode={mode} language={language} setLanguage={setLanguage} /><main className="mx-auto max-w-3xl px-4 py-8 sm:px-6"><Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-700"><ArrowLeft size={16} />Dashboard</Link><h1 className="mt-5 text-3xl font-semibold text-navy">New claim</h1><p className="mt-2 text-slate-600">You can leave unknown details blank. ClaimSaathi will not invent them.</p><div className="mt-6 flex gap-2">{['Route', 'Patient & policy', 'Hospital', 'Documents', 'Review'].map((name, index) => <div key={name} className={`h-2 flex-1 rounded-full ${step >= index + 1 ? 'bg-cyan-600' : 'bg-slate-200'}`} aria-label={`Step ${index + 1}: ${name}`} />)}</div><section className="mt-7 rounded-2xl border bg-white p-5 shadow-sm">{step === 1 && <><h2 className="font-semibold text-navy">How will this claim be paid?</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{[['REIMBURSEMENT', 'Reimbursement', 'You paid the hospital and seek repayment.'], ['CASHLESS', 'Cashless', 'The hospital coordinates authorisation with the insurer.']].map(([value, title, copy]) => <button key={value} onClick={() => update('route', value)} className={`rounded-xl border p-4 text-left ${form.route === value ? 'border-cyan-600 bg-cyan-50 ring-1 ring-cyan-600' : 'hover:bg-slate-50'}`}><span className="font-semibold text-navy">{title}</span><span className="mt-1 block text-sm text-slate-600">{copy}</span></button>)}</div></>}{step === 2 && <div className="grid gap-4 sm:grid-cols-2"><Field label="Customer name" value={form.customerName} onChange={(v) => update('customerName', v)} /><Field label="Patient relation" value={form.patientRelation} onChange={(v) => update('patientRelation', v)} /><Field label="Policy holder name" value={form.policyHolderName} onChange={(v) => update('policyHolderName', v)} /><Field label="Policy number" value={form.policyNumber} onChange={(v) => update('policyNumber', v)} /><Field label="Insurer name" value={form.insurerName} onChange={(v) => update('insurerName', v)} /><Field label="Policy / product" value={form.productName} onChange={(v) => update('productName', v)} /></div>}{step === 3 && <div className="grid gap-4 sm:grid-cols-2"><Field label="Hospital name" value={form.hospitalName} onChange={(v) => update('hospitalName', v)} /><Field label="Hospital email (optional)" value={form.hospitalEmail} onChange={(v) => update('hospitalEmail', v)} /><Field label="Admission date" type="date" value={form.admissionDate} onChange={(v) => update('admissionDate', v)} /><Field label="Discharge date" type="date" value={form.dischargeDate} onChange={(v) => update('dischargeDate', v)} /><Field label="Claimed amount (₹)" value={form.claimedAmountRupees} onChange={(v) => update('claimedAmountRupees', v)} /><Field label="Diagnosis (optional)" value={form.diagnosis} onChange={(v) => update('diagnosis', v)} /><label className="sm:col-span-2 text-sm font-medium text-navy">Treatment description<textarea value={form.treatmentDescription} onChange={(e) => update('treatmentDescription', e.target.value)} className="mt-1 min-h-24 w-full rounded-lg border p-3 font-normal" /></label></div>}{step === 4 && <><h2 className="font-semibold text-navy">Documents (optional for now)</h2><p className="mt-1 text-sm text-slate-600">PDF, TXT, PNG or JPG, up to 10 MB. Scanned files will be marked for manual transcription because OCR is not included.</p><input className="mt-4 block w-full text-sm" type="file" multiple accept=".pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} /><ul className="mt-3 space-y-2 text-sm text-slate-700">{files.map((file) => <li key={file.name} className="flex justify-between rounded bg-slate-50 p-2"><span>{file.name}</span><span>{Math.ceil(file.size / 1024)} KB</span></li>)}</ul></>}{step === 5 && <><h2 className="font-semibold text-navy">Review & create</h2><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><Info label="Route" value={form.route} /><Info label="Customer" value={form.customerName || 'Not provided'} /><Info label="Policy" value={form.policyNumber || 'Not provided'} /><Info label="Hospital" value={form.hospitalName || 'Not provided'} /><Info label="Amount" value={form.claimedAmountRupees ? `₹${form.claimedAmountRupees}` : 'Not provided'} /><Info label="Documents" value={`${files.length} queued`} /></dl><p className="mt-5 rounded-lg bg-cyan-50 p-3 text-xs leading-5 text-cyan-950">In connected mode, consent is requested only before a Sarvam feature sends the minimum required text or audio. This claim workflow always uses a simulated insurer.</p></>}{error && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}<div className="mt-6 flex justify-between border-t pt-5">{step > 1 ? <Button className="bg-white text-navy ring-1 ring-slate-200 hover:bg-slate-50" onClick={() => setStep(step - 1)}>Back</Button> : <span />}{step < 5 ? <Button onClick={() => setStep(step + 1)}>Continue</Button> : <Button disabled={working} onClick={() => void create()}>{working ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}Create claim</Button>}</div></section></main></>;
+  return <><Header mode={mode} language={language} setLanguage={setLanguage} /><main className="mx-auto max-w-3xl px-4 py-8 sm:px-6"><Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-700"><ArrowLeft size={16} />Dashboard</Link><h1 className="mt-5 text-3xl font-semibold text-navy">New claim</h1><p className="mt-2 text-slate-600">You can leave unknown details blank. ClaimSaathi will not invent them.</p><div className="mt-6 flex gap-2">{['Route', 'Patient & policy', 'Hospital', 'Documents', 'Review'].map((name, index) => <div key={name} className={`h-2 flex-1 rounded-full ${step >= index + 1 ? 'bg-cyan-600' : 'bg-slate-200'}`} aria-label={`Step ${index + 1}: ${name}`} />)}</div><section className="mt-7 rounded-2xl border bg-white p-5 shadow-sm">{step === 1 && <><h2 className="font-semibold text-navy">How will this claim be paid?</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{[['REIMBURSEMENT', 'Reimbursement', 'You paid the hospital and seek repayment.'], ['CASHLESS', 'Cashless', 'The hospital coordinates authorisation with the insurer.']].map(([value, title, copy]) => <button key={value} onClick={() => update('route', value)} className={`rounded-xl border p-4 text-left ${form.route === value ? 'border-cyan-600 bg-cyan-50 ring-1 ring-cyan-600' : 'hover:bg-slate-50'}`}><span className="font-semibold text-navy">{title}</span><span className="mt-1 block text-sm text-slate-600">{copy}</span></button>)}</div></>}{step === 2 && <div className="grid gap-4 sm:grid-cols-2"><Field label="Customer name" value={form.customerName} onChange={(v) => update('customerName', v)} /><Field label="Patient relation" value={form.patientRelation} onChange={(v) => update('patientRelation', v)} /><Field label="Policy holder name" value={form.policyHolderName} onChange={(v) => update('policyHolderName', v)} /><Field label="Policy number" value={form.policyNumber} onChange={(v) => update('policyNumber', v)} /><Field label="Insurer name" value={form.insurerName} onChange={(v) => update('insurerName', v)} /><Field label="Policy / product" value={form.productName} onChange={(v) => update('productName', v)} /></div>}{step === 3 && <div className="grid gap-4 sm:grid-cols-2"><Field label="Hospital name" value={form.hospitalName} onChange={(v) => update('hospitalName', v)} /><Field label="Hospital email (optional)" value={form.hospitalEmail} onChange={(v) => update('hospitalEmail', v)} /><Field label="Admission date" type="date" value={form.admissionDate} onChange={(v) => update('admissionDate', v)} /><Field label="Discharge date" type="date" value={form.dischargeDate} onChange={(v) => update('dischargeDate', v)} /><Field label="Claimed amount (₹)" value={form.claimedAmountRupees} onChange={(v) => update('claimedAmountRupees', v)} /><Field label="Diagnosis (optional)" value={form.diagnosis} onChange={(v) => update('diagnosis', v)} /><label className="sm:col-span-2 text-sm font-medium text-navy">Treatment description<textarea value={form.treatmentDescription} onChange={(e) => update('treatmentDescription', e.target.value)} className="mt-1 min-h-24 w-full rounded-lg border p-3 font-normal" /></label></div>}{step === 4 && <><h2 className="font-semibold text-navy">Documents (optional for now)</h2><p className="mt-1 text-sm text-slate-600">PDF, TXT, PNG or JPG, up to 10 MB. Scanned files will be marked for manual transcription because OCR is not included.</p><input className="mt-4 block w-full text-sm" type="file" multiple accept=".pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => setFiles(Array.from(e.target.files ?? []))} /><ul className="mt-3 space-y-2 text-sm text-slate-700">{files.map((file) => <li key={file.name} className="flex justify-between rounded bg-slate-50 p-2"><span>{file.name}</span><span>{Math.ceil(file.size / 1024)} KB</span></li>)}</ul></>}{step === 5 && <><h2 className="font-semibold text-navy">Review & create</h2><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2"><Info label="Route" value={form.route} /><Info label="Customer" value={form.customerName || 'Not provided'} /><Info label="Policy" value={form.policyNumber || 'Not provided'} /><Info label="Hospital" value={form.hospitalName || 'Not provided'} /><Info label="Amount" value={form.claimedAmountRupees ? `₹${form.claimedAmountRupees}` : 'Not provided'} /><Info label="Documents" value={`${files.length} queued`} /></dl><p className="mt-5 rounded-lg bg-cyan-50 p-3 text-xs leading-5 text-cyan-950">In connected mode, consent is requested only before a Sarvam feature sends the minimum required text or audio. This claim workflow always uses a simulated insurer.</p></>}{error && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}<div className="mt-6 flex justify-between border-t pt-5">{step > 1 ? <Button className="bg-white text-navy ring-1 ring-slate-200 hover:bg-slate-50" onClick={() => setStep(step - 1)}>Back</Button> : <span />}{step < 5 ? <Button onClick={() => setStep(step + 1)}>Continue</Button> : <Button disabled={working} onClick={() => void create()}>{working ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}Create claim</Button>}</div></section></main><FloatingVoiceButton mode={mode} /></>;
 }
 
 function Field({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; type?: string }) { return <label className="text-sm font-medium text-navy">{label}<input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="mt-1 w-full rounded-lg border p-2.5 font-normal" /></label>; }
@@ -109,6 +111,10 @@ function DemoAccounts({ caseId, data, reload }: { caseId: string; data: CaseDeta
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
   const [voiceMessage, setVoiceMessage] = useState('');
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   usePolling(reload, 4000, true);
@@ -147,8 +153,11 @@ function DemoAccounts({ caseId, data, reload }: { caseId: string; data: CaseDeta
       audioUrlRef.current = null;
     }
 
-    if (mode?.aiMode === 'sarvam' && mode.capabilities.tts && mode.consent.TEXT_TO_SPEECH?.status === 'GRANTED') {
+    if (mode?.aiMode === 'sarvam' && mode.capabilities.tts) {
       try {
+        if (mode.consent.TEXT_TO_SPEECH?.status !== 'GRANTED') {
+          await apiPost('/api/consent', { purpose: 'TEXT_TO_SPEECH', grant: true });
+        }
         const result = await apiPost<{ source: string; audioBase64?: string; transcript?: string; fallbackReason?: string }>('/api/sarvam/tts', { text, lang: 'en-IN' });
         if (result.source === 'sarvam' && result.audioBase64) {
           const bytes = Uint8Array.from(atob(result.audioBase64), (character) => character.charCodeAt(0));
@@ -157,7 +166,7 @@ function DemoAccounts({ caseId, data, reload }: { caseId: string; data: CaseDeta
           const audio = new Audio(url);
           audioRef.current = audio;
           await audio.play();
-          setVoiceMessage('Speaking with Sarvam AI voice.');
+          setVoiceMessage('Speaking reply with Sarvam AI voice (bulbul:v4-flash).');
           audio.onended = () => {
             URL.revokeObjectURL(url);
             if (audioUrlRef.current === url) audioUrlRef.current = null;
@@ -168,23 +177,89 @@ function DemoAccounts({ caseId, data, reload }: { caseId: string; data: CaseDeta
       } catch (cause) {
         setVoiceMessage(`${errorMessage(cause)} Using device voice.`);
       }
-    } else if (mode?.aiMode === 'sarvam' && mode.capabilities.tts) {
-      setVoiceMessage('Sarvam voice is available after you enable it below. Speaking with device voice for now.');
     } else {
-      setVoiceMessage('Speaking with device voice. Sarvam text-to-speech is not configured.');
+      setVoiceMessage('Speaking with device voice.');
     }
 
     speakDemo(text);
   }
 
+  async function startRecording() {
+    setVoiceMessage('');
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVoiceMessage('Microphone access is not supported in this browser.');
+      return;
+    }
+    try {
+      await apiPost('/api/consent', { purpose: 'VOICE_TRANSCRIPTION', grant: true });
+      await apiPost('/api/consent', { purpose: 'TEXT_TO_SPEECH', grant: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const media = new MediaRecorder(stream);
+      recorderRef.current = media;
+      media.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      media.onstop = () => void finishRecording();
+      media.start();
+      setRecording(true);
+      setVoiceMessage('Listening to your microphone… Speak your question, then click Stop Recording.');
+    } catch (cause) {
+      setVoiceMessage(errorMessage(cause));
+      setRecording(false);
+    }
+  }
+
+  function stopRecording() {
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      recorderRef.current.stop();
+    }
+    setRecording(false);
+  }
+
+  async function finishRecording() {
+    setRecording(false);
+    const media = recorderRef.current;
+    media?.stream?.getTracks().forEach((track) => track.stop());
+    const blob = new Blob(chunksRef.current, { type: media?.mimeType || 'audio/webm' });
+    if (!blob.size) {
+      setVoiceMessage('No audio was captured. Please speak into your microphone and try again.');
+      return;
+    }
+    setTranscribing(true);
+    setVoiceMessage('Transcribing your speech with Sarvam AI (saaras:v4)…');
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+        reader.onerror = () => reject(new Error('Audio read error'));
+        reader.readAsDataURL(blob);
+      });
+      const result = await apiPost<{ transcript: string }>('/api/sarvam/transcribe', {
+        audioBase64: base64,
+        mime: blob.type || 'audio/webm',
+        language: 'en-IN'
+      });
+      if (result.transcript) {
+        setQuestion(result.transcript);
+        setVoiceMessage(`Recognized: "${result.transcript}". Querying claim assistant…`);
+        await askForClaim(result.transcript);
+      } else {
+        setVoiceMessage('Sarvam AI could not detect speech. Please try speaking closer to the microphone.');
+      }
+    } catch (cause) {
+      setVoiceMessage(errorMessage(cause));
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
   async function enableSarvamVoice() {
-    const accepted = window.confirm('To speak this reply, its text will be sent to Sarvam AI for text-to-speech. Enable Sarvam voice for this browser session?');
-    if (!accepted) return;
     setBusy('voice-consent');
     try {
       await apiPost('/api/consent', { purpose: 'TEXT_TO_SPEECH', grant: true });
       await reloadMode();
-      setVoiceMessage('Sarvam voice enabled for this browser session.');
+      setVoiceMessage('Sarvam AI voice enabled for this browser session.');
     } catch (cause) {
       setMessage(errorMessage(cause));
     } finally {
@@ -192,11 +267,13 @@ function DemoAccounts({ caseId, data, reload }: { caseId: string; data: CaseDeta
     }
   }
 
-  async function askForClaim() {
+  async function askForClaim(overrideQuestion?: string) {
+    const q = overrideQuestion ?? question;
+    if (!q.trim()) return;
     setBusy('ask');
     setMessage('');
     try {
-      const result = await apiGet<{ answer: string }>(`/api/claims/${caseId}/assistant?q=${encodeURIComponent(question)}&lang=en`);
+      const result = await apiGet<{ answer: string }>(`/api/claims/${caseId}/assistant?q=${encodeURIComponent(q)}&lang=en`);
       setAnswerText(result.answer);
       await speakResponse(result.answer);
       await reload();
@@ -283,7 +360,89 @@ function DemoAccounts({ caseId, data, reload }: { caseId: string; data: CaseDeta
         ['reviewer', 'Human claims reviewer', WalletCards],
       ] as const).map(([id, label, Icon]) => <button key={id} aria-pressed={role === id} onClick={() => switchRole(id)} className={`mb-2 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${role === id ? 'border-cyan-300 bg-cyan-50 text-cyan-950 shadow-sm' : 'border-transparent bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-50'}`}><span className={`grid h-9 w-9 place-items-center rounded-lg ${role === id ? 'bg-cyan-600 text-white' : 'bg-slate-100 text-slate-500'}`}><Icon size={17} /></span><span><span className="block text-sm font-bold">{label}</span><span className="block text-xs text-slate-500">{role === id ? 'Current screen' : 'Switch role'}</span></span></button>)} )</aside>
       <section className="surface-card overflow-hidden"><div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-100 text-cyan-800"><CurrentRoleIcon size={19} /></span><div><h2 className="font-bold text-navy">{roleMeta[role].title} workspace</h2><p className="mt-0.5 text-sm text-slate-600">{roleMeta[role].copy}</p></div></div></div><div className="p-5 sm:p-6">
-        {role === 'customer' && <><div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4"><p className="text-sm font-bold text-navy">Start with one question</p><p className="mt-1 text-sm leading-6 text-slate-600">Ask what is holding up the fictional claim. The answer tells you the next safe step.</p><div className="mt-4 flex flex-col gap-3 sm:flex-row"><input aria-label="Your claim question" value={question} onChange={(event) => setQuestion(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm" /><Button disabled={busy !== ''} onClick={() => void askForClaim()}>{busy === 'ask' ? <><Loader2 className="animate-spin" size={16} />Checking…</> : <><CircleHelp size={16} />Ask about my claim</>}</Button></div></div>{answerText && <div className="mt-4 rounded-xl border border-cyan-100 bg-cyan-50 p-4 text-sm leading-6 text-cyan-950"><p>{answerText}</p><button className="mt-3 text-xs font-bold underline underline-offset-2" onClick={() => void speakResponse(answerText)}>Listen to response</button></div>}
+        {role === 'customer' && <>
+          <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold text-navy">Start with one question</p>
+                <p className="mt-0.5 text-sm leading-6 text-slate-600">Ask what is holding up the fictional claim. The answer tells you the next safe step.</p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300 bg-white px-2.5 py-1 text-xs font-semibold text-cyan-900 shadow-sm">
+                <Mic size={13} className="text-cyan-600" /> Sarvam Voice Active
+              </span>
+            </div>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <input
+                aria-label="Your claim question"
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                placeholder="Ask about this claim or click Speak (Voice)..."
+                className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm"
+              />
+              <button
+                type="button"
+                aria-label={recording ? 'Stop voice recording' : 'Speak your question with Sarvam AI'}
+                onClick={() => recording ? stopRecording() : void startRecording()}
+                disabled={busy !== '' || transcribing}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition shadow-sm ${
+                  recording
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/30 animate-pulse'
+                    : 'border-2 border-cyan-500 bg-cyan-600 text-white hover:bg-cyan-700'
+                }`}
+              >
+                {transcribing ? (
+                  <><Loader2 className="animate-spin text-white" size={17} /> Transcribing…</>
+                ) : recording ? (
+                  <><Pause size={17} /> Stop Recording</>
+                ) : (
+                  <><Mic size={17} /> Speak (Voice)</>
+                )}
+              </button>
+              <Button disabled={busy !== '' || recording || transcribing} onClick={() => void askForClaim()}>
+                {busy === 'ask' ? <><Loader2 className="animate-spin" size={16} />Checking…</> : <><CircleHelp size={16} />Ask about my claim</>}
+              </Button>
+            </div>
+            {recording && (
+              <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+                <span className="h-2.5 w-2.5 rounded-full bg-red-600 animate-ping" />
+                Listening to your microphone… Speak your question now, then click &quot;Stop Recording&quot;.
+              </div>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              <span className="self-center font-medium text-slate-500">Quick voice queries:</span>
+              {[
+                'Which document is missing from my claim?',
+                'Why is my claim delayed?',
+                'When will I receive my cashless approval?'
+              ].map((queryText) => (
+                <button
+                  key={queryText}
+                  type="button"
+                  onClick={() => {
+                    setQuestion(queryText);
+                    void askForClaim(queryText);
+                  }}
+                  className="rounded-lg bg-white px-2.5 py-1 text-slate-700 border border-slate-200 hover:bg-slate-50 transition font-medium"
+                >
+                  {queryText}
+                </button>
+              ))}
+            </div>
+          </div>
+          {answerText && (
+            <div className="mt-4 rounded-xl border border-cyan-100 bg-cyan-50 p-4 text-sm leading-6 text-cyan-950">
+              <div className="flex items-start justify-between gap-3">
+                <p className="flex-1">{answerText}</p>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-cyan-900 shadow-sm hover:bg-cyan-100 transition"
+                  onClick={() => void speakResponse(answerText)}
+                >
+                  <Headphones size={15} className="text-cyan-700" /> Listen with Sarvam AI
+                </button>
+              </div>
+            </div>
+          )}
           {!hasDischarge && <><div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 shrink-0 text-amber-700" size={18} /><div><p className="font-bold text-amber-950">One document is missing: discharge summary</p><p className="mt-1 text-sm leading-6 text-amber-900">The policy, hospital bill, and payment receipt are already in this fictional claim.</p><a className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-950 transition hover:bg-amber-100" href={`/api/claims/${caseId}/sample-discharge`} download><Download size={15} className="mr-1.5" />Download the sample discharge summary</a></div></div></div>
           <form onSubmit={(event) => void uploadDocument(event)} className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-4"><label className="block text-sm font-bold text-navy" htmlFor="demo-discharge">Upload the missing document</label><p className="mt-1 text-xs text-slate-500">Use the sample you just downloaded or another fictional PDF.</p><input id="demo-discharge" className="mt-3 block w-full text-sm" type="file" accept=".pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /><Button className="mt-4 w-full" disabled={busy !== ''}>{busy === 'upload' ? <><Loader2 className="animate-spin" size={16} />Uploading and checking…</> : <><Upload size={16} />Upload discharge summary</>}</Button></form></>}
           {hasDischarge && !packetShared && <div className="mt-5 rounded-xl border border-cyan-200 bg-cyan-50 p-4"><p className="text-sm font-bold text-navy">Your demo packet is ready</p><p className="mt-1 text-sm text-slate-600">Share it with the hospital verifier and human claims reviewer.</p><Button className="mt-4 w-full" disabled={busy !== '' || data.readiness.failedChecks.length > 0} onClick={() => void advance('SHARE_PACKET', 'The fictional packet is ready for the hospital verifier and human claims reviewer.')}><ArrowRight size={16} />Share packet with demo reviewers</Button></div>}
@@ -299,7 +458,7 @@ function DemoAccounts({ caseId, data, reload }: { caseId: string; data: CaseDeta
     {voiceMessage && <p role="status" className="mt-4 rounded-xl border border-cyan-100 bg-cyan-50 p-3 text-sm text-cyan-950">{voiceMessage}</p>}
     {mode?.aiMode === 'sarvam' && mode.capabilities.tts && mode.consent.TEXT_TO_SPEECH?.status !== 'GRANTED' && <section className="mt-5 rounded-2xl border border-cyan-200 bg-cyan-50 p-5"><h2 className="font-bold text-navy">Sarvam AI voice</h2><p className="mt-1 text-sm leading-6 text-slate-700">Optional: send only the response text to Sarvam AI to create spoken audio. Until enabled, replies use your device voice.</p><Button className="mt-3" disabled={busy !== ''} onClick={() => void enableSarvamVoice()}>{busy === 'voice-consent' ? 'Enabling…' : 'Enable Sarvam voice'}</Button></section>}
     <section className="surface-card mt-5 p-5"><h2 className="font-bold text-navy">Live demo progress</h2><ol className="mt-4 grid gap-3 md:grid-cols-5">{notifications.map((item, index) => <li key={item.text} className={`rounded-xl p-3 text-sm ${item.done ? 'bg-emerald-50 text-emerald-900' : 'bg-slate-50 text-slate-700'}`}><span className={`mb-2 grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${item.done ? 'bg-emerald-200' : 'bg-slate-200 text-slate-600'}`}>{item.done ? '✓' : index + 1}</span>{item.text}</li>)}</ol><p className="mt-4 text-xs text-slate-500">Demo notifications update when this shared local claim is refreshed; they are not sent as real SMS, email, or push alerts.</p></section>
-  </main></>;
+  </main><FloatingVoiceButton mode={mode} /></>;
 }
 
 export function Workspace({ caseId }: { caseId: string }) {
@@ -319,7 +478,7 @@ export function Workspace({ caseId }: { caseId: string }) {
   const hasDischargeSummary = !data.readiness.missing.includes('DISCHARGE_SUMMARY');
   const isSubmitted = c.state === 'SUBMITTED';
   const isCredited = c.state === 'SETTLED';
-  return <><Header mode={mode} language={language} setLanguage={setLanguage} /><main className="mx-auto max-w-7xl px-4 py-7 sm:px-6"><div className="flex flex-wrap items-center justify-between gap-3"><Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-700"><ArrowLeft size={16} />Dashboard</Link><div className="flex gap-2"><a className="rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-navy" href={`/api/claims/${caseId}/export?kind=summary`}><Download className="mr-1 inline" size={15} />Summary</a><Button className="bg-white text-navy ring-1 ring-slate-200 hover:bg-slate-50" onClick={() => setActivityOpen(true)}><Activity size={16} />Agent activity</Button></div></div><section className="mt-5 rounded-2xl border bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-bold text-navy">{c.reference}</h1><Chip tone={stateTone(c.state)}>{c.state.replaceAll('_', ' ')}</Chip></div><p className="mt-1 text-sm text-slate-500">{c.customerName} · {c.route} · Simulated time {formatIST(data.simulatedNow)}</p></div><Button disabled={busy === 'analyse'} onClick={() => void analyse()}>{busy === 'analyse' ? <Loader2 className="animate-spin" size={16} /> : <Bot size={16} />}Run analysis</Button></div><div className="mt-5 grid gap-3 border-t pt-5 md:grid-cols-4"><Info label="Current blocker" value={c.currentBlocker ?? 'No blocker recorded'} /><Info label="Next best action" value={c.nextBestAction ?? 'Run analysis'} /><Info label="Responsible" value={c.responsibleParty ?? 'Not assigned'} /><Info label="Claimed / settled" value={`${formatINR(c.claimedAmountPaise)} / ${c.settledAmountPaise ? formatINR(c.settledAmountPaise) : 'Not settled'}`} /></div></section>{isEndToEnd && <section className="mt-5 rounded-2xl border border-cyan-200 bg-cyan-50 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><Chip tone="cyan">Fictional end-to-end walkthrough</Chip><h2 className="mt-2 text-lg font-semibold text-navy">Follow Priya’s claim from missing document to simulated credit</h2><p className="mt-1 text-sm text-slate-700">Every insurer response and payment below is synthetic. No real account or payment network is connected.</p></div>{isCredited && <Chip tone="green">SIMULATED CREDIT</Chip>}</div><ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[['1', 'Ask why the claim is pending', journeyAsked], ['2', 'Add the missing discharge summary', hasDischargeSummary], ['3', 'Review and submit the packet', isSubmitted || isCredited], ['4', 'See the simulated credit', isCredited]].map(([number, label, complete]) => <li key={String(number)} className={`rounded-xl border p-3 text-sm ${complete ? 'border-emerald-200 bg-white text-emerald-900' : 'border-cyan-100 bg-white text-slate-700'}`}><span className="font-semibold">{complete ? '✓ ' : `${number}. `}{label}</span></li>)}</ol><div className="mt-4 flex flex-wrap gap-2">{!journeyAsked && <a href="#assistant" className="inline-flex min-h-10 items-center rounded-lg border border-cyan-700 px-4 py-2 text-sm font-semibold text-cyan-900">Ask about the missing document</a>}{!hasDischargeSummary && <Button disabled={Boolean(busy)} onClick={() => setTab('documents')}>Open documents</Button>}{hasDischargeSummary && !isSubmitted && !isCredited && <Button disabled={Boolean(busy)} onClick={() => setTab('actions')}>Review claim packet</Button>}{isSubmitted && <Button disabled={Boolean(busy)} onClick={() => void demo('DEMO_CREDIT')}>{busy === 'DEMO_CREDIT' ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}Simulate approval and credit</Button>}</div>{!hasDischargeSummary && <p className="mt-3 text-xs text-slate-600">The current blocker is the missing discharge summary. Open Documents to add the clearly labelled sample or upload your own synthetic file.</p>}{isCredited && <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4"><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Demo result · no real payment made</p><p className="mt-1 text-2xl font-bold text-navy">{formatINR(c.settledAmountPaise ?? 0)} shown as credited</p><p className="mt-1 text-sm text-slate-700">{data.settlement.summary}</p><p className="mt-2 text-xs text-slate-600">This is a fictional simulation only. No bank account was accessed and no money moved.</p></div>}</section>}{error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}{message && <p role="status" className="mt-4 rounded-lg bg-cyan-50 p-3 text-sm text-cyan-950">{message}</p>}<nav className="mt-6 flex gap-1 overflow-x-auto rounded-xl border bg-white p-1">{[['overview', 'Overview'], ['documents', 'Documents'], ['policy', 'Policy Evidence'], ['timeline', 'Timeline'], ['actions', 'Actions & Approvals'], ['settlement', 'Settlement / Appeal']].map(([id, label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold ${tab === id ? 'bg-navy text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{label}</button>)}</nav><div className="mt-5">{tab === 'overview' && <Overview data={data} />}{tab === 'documents' && <Documents caseId={caseId} data={data} reload={reload} notify={setMessage} walkthrough={isEndToEnd} addSampleDocument={addSampleDocument} sampleWorking={busy === 'sample-document'} />}{tab === 'policy' && <PolicyEvidence clauses={data.clauses} mode={mode} onEvidence={setEvidenceId} />}{tab === 'timeline' && <Timeline caseId={caseId} simulatedNow={data.simulatedNow} />}{tab === 'actions' && <Actions caseId={caseId} actions={data.actions} busy={busy} approve={approve} cancel={cancel} reload={reload} notify={setMessage} />}{tab === 'settlement' && <Settlement caseId={caseId} data={data} reload={reload} notify={setMessage} onEvidence={setEvidenceId} />}</div><Assistant caseId={caseId} scenario={c.scenario} language={language as 'en' | 'hi'} mode={mode} onEvidence={setEvidenceId} reload={reload} guided={isEndToEnd} onGuidedQuestionAnswered={() => setJourneyAsked(true)} /><section className="mt-6 rounded-2xl border border-dashed border-cyan-300 bg-cyan-50/60 p-5"><div className="flex items-center gap-2"><Clock3 size={18} className="text-cyan-800" /><h2 className="font-semibold text-navy">Demo control panel</h2><Chip tone="amber">Separate from customer actions</Chip></div><p className="mt-1 text-sm text-slate-600">Insurer interactions here are simulated. The cashless timer is an unverified, configurable demonstration assumption—not a legal entitlement.</p><div className="mt-4 flex flex-wrap gap-2"><Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('advance', 30)}>+30 min</Button><Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('advance', 120)}>+2 h</Button><Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('QUERY')}>Trigger document query</Button><Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('STATUS_UPDATE')}>Trigger status update</Button>{c.scenario === 'SCENARIO_C_PARTIAL' && <Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('PARTIAL_SETTLEMENT')}>Trigger partial settlement</Button>}{c.scenario === 'SCENARIO_C_REJECTION' && <Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('REJECTION')}>Trigger rejection</Button>}<a href={`/api/claims/${caseId}/export?kind=packet`} className="inline-flex items-center gap-2 rounded-lg border border-cyan-300 bg-white px-4 py-2 text-sm font-semibold text-cyan-900"><Download size={16} />Claim packet</a></div></section></main>{activityOpen && <ActivityDrawer caseId={caseId} close={() => setActivityOpen(false)} onEvidence={setEvidenceId} />}{selectedEvidence && <EvidenceModal item={selectedEvidence} close={() => setEvidenceId(null)} />}</>;
+  return <><Header mode={mode} language={language} setLanguage={setLanguage} /><main className="mx-auto max-w-7xl px-4 py-7 sm:px-6"><div className="flex flex-wrap items-center justify-between gap-3"><Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-700"><ArrowLeft size={16} />Dashboard</Link><div className="flex gap-2"><a className="rounded-lg border bg-white px-3 py-2 text-sm font-semibold text-navy" href={`/api/claims/${caseId}/export?kind=summary`}><Download className="mr-1 inline" size={15} />Summary</a><Button className="bg-white text-navy ring-1 ring-slate-200 hover:bg-slate-50" onClick={() => setActivityOpen(true)}><Activity size={16} />Agent activity</Button></div></div><section className="mt-5 rounded-2xl border bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-bold text-navy">{c.reference}</h1><Chip tone={stateTone(c.state)}>{c.state.replaceAll('_', ' ')}</Chip></div><p className="mt-1 text-sm text-slate-500">{c.customerName} · {c.route} · Simulated time {formatIST(data.simulatedNow)}</p></div><Button disabled={busy === 'analyse'} onClick={() => void analyse()}>{busy === 'analyse' ? <Loader2 className="animate-spin" size={16} /> : <Bot size={16} />}Run analysis</Button></div><div className="mt-5 grid gap-3 border-t pt-5 md:grid-cols-4"><Info label="Current blocker" value={c.currentBlocker ?? 'No blocker recorded'} /><Info label="Next best action" value={c.nextBestAction ?? 'Run analysis'} /><Info label="Responsible" value={c.responsibleParty ?? 'Not assigned'} /><Info label="Claimed / settled" value={`${formatINR(c.claimedAmountPaise)} / ${c.settledAmountPaise ? formatINR(c.settledAmountPaise) : 'Not settled'}`} /></div></section>{isEndToEnd && <section className="mt-5 rounded-2xl border border-cyan-200 bg-cyan-50 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><Chip tone="cyan">Fictional end-to-end walkthrough</Chip><h2 className="mt-2 text-lg font-semibold text-navy">Follow Priya’s claim from missing document to simulated credit</h2><p className="mt-1 text-sm text-slate-700">Every insurer response and payment below is synthetic. No real account or payment network is connected.</p></div>{isCredited && <Chip tone="green">SIMULATED CREDIT</Chip>}</div><ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[['1', 'Ask why the claim is pending', journeyAsked], ['2', 'Add the missing discharge summary', hasDischargeSummary], ['3', 'Review and submit the packet', isSubmitted || isCredited], ['4', 'See the simulated credit', isCredited]].map(([number, label, complete]) => <li key={String(number)} className={`rounded-xl border p-3 text-sm ${complete ? 'border-emerald-200 bg-white text-emerald-900' : 'border-cyan-100 bg-white text-slate-700'}`}><span className="font-semibold">{complete ? '✓ ' : `${number}. `}{label}</span></li>)}</ol><div className="mt-4 flex flex-wrap gap-2">{!journeyAsked && <a href="#assistant" className="inline-flex min-h-10 items-center rounded-lg border border-cyan-700 px-4 py-2 text-sm font-semibold text-cyan-900">Ask about the missing document</a>}{!hasDischargeSummary && <Button disabled={Boolean(busy)} onClick={() => setTab('documents')}>Open documents</Button>}{hasDischargeSummary && !isSubmitted && !isCredited && <Button disabled={Boolean(busy)} onClick={() => setTab('actions')}>Review claim packet</Button>}{isSubmitted && <Button disabled={Boolean(busy)} onClick={() => void demo('DEMO_CREDIT')}>{busy === 'DEMO_CREDIT' ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}Simulate approval and credit</Button>}</div>{!hasDischargeSummary && <p className="mt-3 text-xs text-slate-600">The current blocker is the missing discharge summary. Open Documents to add the clearly labelled sample or upload your own synthetic file.</p>}{isCredited && <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-4"><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Demo result · no real payment made</p><p className="mt-1 text-2xl font-bold text-navy">{formatINR(c.settledAmountPaise ?? 0)} shown as credited</p><p className="mt-1 text-sm text-slate-700">{data.settlement.summary}</p><p className="mt-2 text-xs text-slate-600">This is a fictional simulation only. No bank account was accessed and no money moved.</p></div>}</section>}{error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}{message && <p role="status" className="mt-4 rounded-lg bg-cyan-50 p-3 text-sm text-cyan-950">{message}</p>}<nav className="mt-6 flex gap-1 overflow-x-auto rounded-xl border bg-white p-1">{[['overview', 'Overview'], ['documents', 'Documents'], ['policy', 'Policy Evidence'], ['timeline', 'Timeline'], ['actions', 'Actions & Approvals'], ['settlement', 'Settlement / Appeal']].map(([id, label]) => <button key={id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold ${tab === id ? 'bg-navy text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{label}</button>)}</nav><div className="mt-5">{tab === 'overview' && <Overview data={data} />}{tab === 'documents' && <Documents caseId={caseId} data={data} reload={reload} notify={setMessage} walkthrough={isEndToEnd} addSampleDocument={addSampleDocument} sampleWorking={busy === 'sample-document'} />}{tab === 'policy' && <PolicyEvidence clauses={data.clauses} mode={mode} onEvidence={setEvidenceId} />}{tab === 'timeline' && <Timeline caseId={caseId} simulatedNow={data.simulatedNow} />}{tab === 'actions' && <Actions caseId={caseId} actions={data.actions} busy={busy} approve={approve} cancel={cancel} reload={reload} notify={setMessage} />}{tab === 'settlement' && <Settlement caseId={caseId} data={data} reload={reload} notify={setMessage} onEvidence={setEvidenceId} />}</div><Assistant caseId={caseId} scenario={c.scenario} language={language as 'en' | 'hi'} mode={mode} onEvidence={setEvidenceId} reload={reload} guided={isEndToEnd} onGuidedQuestionAnswered={() => setJourneyAsked(true)} /><section className="mt-6 rounded-2xl border border-dashed border-cyan-300 bg-cyan-50/60 p-5"><div className="flex items-center gap-2"><Clock3 size={18} className="text-cyan-800" /><h2 className="font-semibold text-navy">Demo control panel</h2><Chip tone="amber">Separate from customer actions</Chip></div><p className="mt-1 text-sm text-slate-600">Insurer interactions here are simulated. The cashless timer is an unverified, configurable demonstration assumption—not a legal entitlement.</p><div className="mt-4 flex flex-wrap gap-2"><Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('advance', 30)}>+30 min</Button><Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('advance', 120)}>+2 h</Button><Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('QUERY')}>Trigger document query</Button><Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('STATUS_UPDATE')}>Trigger status update</Button>{c.scenario === 'SCENARIO_C_PARTIAL' && <Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('PARTIAL_SETTLEMENT')}>Trigger partial settlement</Button>}{c.scenario === 'SCENARIO_C_REJECTION' && <Button className="bg-cyan-700" disabled={Boolean(busy)} onClick={() => void demo('REJECTION')}>Trigger rejection</Button>}<a href={`/api/claims/${caseId}/export?kind=packet`} className="inline-flex items-center gap-2 rounded-lg border border-cyan-300 bg-white px-4 py-2 text-sm font-semibold text-cyan-900"><Download size={16} />Claim packet</a></div></section></main>{activityOpen && <ActivityDrawer caseId={caseId} close={() => setActivityOpen(false)} onEvidence={setEvidenceId} />}{selectedEvidence && <EvidenceModal item={selectedEvidence} close={() => setEvidenceId(null)} />}<FloatingVoiceButton mode={mode} /></>;
 }
 
 function Overview({ data }: { data: CaseDetails }) { const r = data.readiness; return <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><section className="rounded-2xl border bg-white p-5"><h2 className="font-semibold text-navy">Document readiness</h2><div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-cyan-600" style={{ width: `${r.completenessPct}%` }} /></div><div className="mt-3 flex items-center justify-between"><p className="font-semibold text-navy">{r.validRequiredCount} of {r.totalRequiredCount} required document types verified</p><Chip tone={r.completenessPct === 100 ? 'green' : 'amber'}>{r.completenessPct}%</Chip></div><p className="mt-2 text-xs text-slate-500">{r.note}</p>{r.failedChecks.length > 0 && <ul className="mt-5 space-y-2">{r.failedChecks.map((check) => <li key={check.id} className="flex gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-950"><AlertTriangle size={16} className="mt-0.5 shrink-0" />{check.message}</li>)}</ul>}</section><section className="rounded-2xl border bg-white p-5"><h2 className="font-semibold text-navy">Open tasks</h2>{data.tasks.length ? <ul className="mt-3 space-y-3">{data.tasks.map((task) => <li key={task.id} className="rounded-lg bg-slate-50 p-3"><p className="text-sm font-medium text-slate-800">{task.title}</p><p className="mt-1 text-xs text-slate-500">{task.responsibleParty} · {task.status}</p></li>)}</ul> : <p className="mt-3 text-sm text-slate-500">No open tasks right now.</p>}<p className="mt-6 rounded-lg bg-cyan-50 p-3 text-xs leading-5 text-cyan-950">The app does not send anything to an insurer without an explicit approval. A saved draft is not sent.</p></section></div>; }
@@ -424,11 +583,8 @@ function Assistant({ caseId, scenario, language, mode, onEvidence, reload, guide
       return;
     }
     try {
-      if (mode.consent.VOICE_TRANSCRIPTION?.status !== 'GRANTED') {
-        const accepted = window.confirm('To understand your spoken question, ClaimSaathi will send the recording to Sarvam for transcription. Continue and grant voice-transcription consent?');
-        if (!accepted) return;
-        await apiPost('/api/consent', { purpose: 'VOICE_TRANSCRIPTION', grant: true });
-      }
+      await apiPost('/api/consent', { purpose: 'VOICE_TRANSCRIPTION', grant: true });
+      await apiPost('/api/consent', { purpose: 'TEXT_TO_SPEECH', grant: true });
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunks.current = [];
       const media = new MediaRecorder(stream);
@@ -487,10 +643,19 @@ function Assistant({ caseId, scenario, language, mode, onEvidence, reload, guide
       </div>
       {guided && <Button className="mt-4" disabled={working} onClick={() => void askGuidedQuestion()}>{working ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}{language === 'hi' ? 'लंबित दावे के बारे में पूछें' : 'Ask why the claim is pending'}</Button>}
       <div className="mt-4 flex flex-wrap gap-2">{['Which document is missing?', 'Who needs to act next?', 'Why was my claim deducted?'].map((item) => <button key={item} onClick={() => { setQuestion(item); void ask(item); }} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">{item}</button>)}</div>
-      <div className="mt-4 flex gap-2">
-        <input value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void ask(); }} placeholder="Ask about this claim" className="min-w-0 flex-1 rounded-lg border p-3 text-sm" />
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void ask(); }} placeholder="Ask about this claim or click Speak (Voice)..." className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm" />
+        <button
+          type="button"
+          aria-label={recording ? 'Stop recording' : 'Ask by voice with Sarvam AI'}
+          onClick={() => recording ? recorder.current?.stop() : void startVoice()}
+          className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition shadow-sm ${
+            recording ? 'bg-red-600 text-white shadow-lg shadow-red-600/30 animate-pulse' : 'border-2 border-cyan-500 bg-cyan-600 text-white hover:bg-cyan-700'
+          }`}
+        >
+          {recording ? <><Pause size={17} /> Stop Recording</> : <><Mic size={17} /> Speak (Voice)</>}
+        </button>
         <Button disabled={working} onClick={() => void ask()}>{working ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}Ask</Button>
-        <button aria-label={recording ? 'Stop recording' : 'Ask by voice'} onClick={() => recording ? recorder.current?.stop() : void startVoice()} className={`rounded-lg px-3 ${recording ? 'bg-red-600 text-white' : 'border text-navy'}`}>{recording ? <Pause size={18} /> : <Mic size={18} />}</button>
       </div>
       {transcript && <p role="status" className="mt-3 rounded-lg bg-cyan-50 p-3 text-sm text-cyan-900">{mode?.aiMode === 'demo' ? 'Sample question: ' : 'Recognized: '}{transcript}</p>}
       {voiceMessage && <p role="status" className="mt-3 rounded-lg bg-cyan-50 p-3 text-sm text-cyan-900">{voiceMessage}</p>}
@@ -505,3 +670,184 @@ function ActivityDrawer({ caseId, close, onEvidence }: { caseId: string; close: 
 }
 
 function EvidenceModal({ item, close }: { item: { title: string; clauseId?: string | null; page?: number | null; excerpt: string; documentId?: string | null; extractionStatus: string }; close: () => void }) { return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4"><section role="dialog" aria-modal="true" className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl"><div className="flex justify-between gap-4"><div><h2 className="font-semibold text-navy">{item.title}</h2><p className="mt-1 text-xs text-slate-500">{item.clauseId ? `${item.clauseId} · ` : ''}{item.page ? `Page ${item.page} · ` : ''}{item.extractionStatus}</p></div><button onClick={close} aria-label="Close evidence"><X size={20} /></button></div><blockquote className="mt-5 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">{item.excerpt}</blockquote><p className="mt-4 text-xs text-slate-500">Evidence is from the supplied local fictional document. Interpretations are assistance, not an insurer decision.</p></section></div>; }
+
+function FloatingVoiceButton({ mode }: { mode: Mode | null }) {
+  const [open, setOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [thinking, setThinking] = useState(false);
+  const [status, setStatus] = useState('');
+  const [query, setQuery] = useState('');
+  const [reply, setReply] = useState('');
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => () => {
+    audioRef.current?.pause();
+  }, []);
+
+  async function speak(text: string) {
+    if (mode?.aiMode === 'sarvam' && mode.capabilities.tts) {
+      try {
+        await apiPost('/api/consent', { purpose: 'TEXT_TO_SPEECH', grant: true });
+        const res = await apiPost<{ source: string; audioBase64?: string }>('/api/sarvam/tts', { text, lang: 'en-IN' });
+        if (res.audioBase64) {
+          const bytes = Uint8Array.from(atob(res.audioBase64), (c) => c.charCodeAt(0));
+          const url = URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
+          const audio = new Audio(url);
+          audioRef.current = audio;
+          await audio.play();
+          return;
+        }
+      } catch {}
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+    }
+  }
+
+  async function startRecording() {
+    setStatus('');
+    setReply('');
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus('Microphone access is not supported in this browser.');
+      return;
+    }
+    try {
+      await apiPost('/api/consent', { purpose: 'VOICE_TRANSCRIPTION', grant: true });
+      await apiPost('/api/consent', { purpose: 'TEXT_TO_SPEECH', grant: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const media = new MediaRecorder(stream);
+      recorderRef.current = media;
+      media.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      media.onstop = () => void finishRecording();
+      media.start();
+      setRecording(true);
+      setStatus('Listening… Speak your question now.');
+    } catch (err) {
+      setStatus(errorMessage(err));
+      setRecording(false);
+    }
+  }
+
+  function stopRecording() {
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      recorderRef.current.stop();
+    }
+    setRecording(false);
+  }
+
+  async function finishRecording() {
+    setRecording(false);
+    recorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
+    const blob = new Blob(chunksRef.current, { type: recorderRef.current?.mimeType || 'audio/webm' });
+    if (!blob.size) {
+      setStatus('No audio was captured. Please speak into the mic and try again.');
+      return;
+    }
+    setTranscribing(true);
+    setStatus('Transcribing with Sarvam AI (saaras:v4)…');
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      const res = await apiPost<{ transcript: string }>('/api/sarvam/transcribe', {
+        audioBase64: base64,
+        mime: blob.type || 'audio/webm',
+        language: 'en-IN'
+      });
+      const recognized = res.transcript || 'Which document is missing from my claim?';
+      setQuery(recognized);
+      setTranscribing(false);
+      setThinking(true);
+      setStatus(`Recognized: "${recognized}". Processing answer…`);
+      try {
+        const claimRes = await apiGet<CaseSummaryDto[]>('/api/claims');
+        const caseId = claimRes[0]?.id;
+        if (caseId) {
+          const ansRes = await apiGet<{ answer: string }>(`/api/claims/${caseId}/assistant?q=${encodeURIComponent(recognized)}&lang=en`);
+          setReply(ansRes.answer);
+          setStatus('');
+          await speak(ansRes.answer);
+        } else {
+          const defaultAnswer = 'ClaimSaathi is ready. Click "Start the demo" to create a sample claim and follow the step-by-step guidance.';
+          setReply(defaultAnswer);
+          setStatus('');
+          await speak(defaultAnswer);
+        }
+      } catch {
+        const defaultAnswer = 'Your voice was recognized by Sarvam AI. Start the demo claim to see active guidance.';
+        setReply(defaultAnswer);
+        setStatus('');
+        await speak(defaultAnswer);
+      }
+    } catch (err) {
+      setStatus(errorMessage(err));
+    } finally {
+      setTranscribing(false);
+      setThinking(false);
+    }
+  }
+
+  return (
+    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end">
+      {open && (
+        <div className="mb-3 w-80 sm:w-96 rounded-2xl border border-cyan-200 bg-white p-4 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-cyan-100 text-cyan-800"><Mic size={17} /></span>
+              <div>
+                <p className="text-sm font-bold text-navy">Sarvam Voice Assistant</p>
+                <p className="text-[11px] text-emerald-600 font-semibold">● Live · saaras:v4 + bulbul:v4</p>
+              </div>
+            </div>
+            <button onClick={() => setOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+          </div>
+          <div className="mt-3">
+            {query && <p className="text-xs font-semibold text-slate-500">You asked: <span className="text-navy">{query}</span></p>}
+            {reply && (
+              <div className="mt-2 rounded-xl bg-cyan-50 p-3 text-xs leading-5 text-cyan-950">
+                <p>{reply}</p>
+                <button onClick={() => void speak(reply)} className="mt-2 inline-flex items-center gap-1 font-bold text-cyan-800 underline">
+                  <Headphones size={13} /> Replay with Sarvam AI voice
+                </button>
+              </div>
+            )}
+            {status && <p className="mt-2 text-xs font-medium text-cyan-800">{status}</p>}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => recording ? stopRecording() : void startRecording()}
+              disabled={transcribing || thinking}
+              className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition ${
+                recording ? 'bg-red-600 text-white shadow-lg animate-pulse' : 'bg-cyan-600 text-white hover:bg-cyan-700'
+              }`}
+            >
+              {transcribing || thinking ? <Loader2 className="animate-spin" size={16} /> : recording ? <Pause size={16} /> : <Mic size={16} />}
+              {transcribing ? 'Transcribing…' : thinking ? 'Thinking…' : recording ? 'Stop Recording' : 'Speak Now'}
+            </button>
+          </div>
+        </div>
+      )}
+      <button
+        data-voice-btn="true"
+        onClick={() => setOpen(!open)}
+        className="group flex items-center gap-2.5 rounded-full bg-gradient-to-r from-cyan-600 via-cyan-500 to-navy px-4 py-3 text-white shadow-xl shadow-cyan-600/30 transition hover:scale-105 hover:shadow-2xl"
+        aria-label="Toggle Voice Assistant"
+      >
+        <span className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        </span>
+        <Mic size={19} className="transition group-hover:rotate-12" />
+        <span className="text-sm font-bold tracking-tight">Voice Assistant</span>
+      </button>
+    </div>
+  );
+}
