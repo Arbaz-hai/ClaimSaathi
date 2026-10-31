@@ -1,0 +1,37 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# local data (uploaded documents, sqlite databases, generated fixtures)
+/data/
+prisma/*.db
+prisma/*.db-journal
+fixtures/generated/
+
+# env
+.env
+.env.local
+.env*.local
+
+# testing
+/playwright-report/
+/test-results/
+/coverage/
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+
+# logs
+npm-debug.log*
+pnpm-debug.log*

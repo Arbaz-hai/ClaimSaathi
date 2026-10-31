@@ -1,0 +1,286 @@
+// ClaimSaathi — Prisma schema (SQLite).
+// Notes:
+//  - SQLite has no enum support; enum-like fields are validated strings.
+//  - JSON fields are stored as strings (SQLite has no native Json type).
+//  - All money values are integer PAISE (no floating point money).
+//  - Every record is scoped to a DemoSession (HTTP-only cookie) or to a
+//    ClaimCase that itself belongs to a session.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Session (isolation + simulated clock)
+// ---------------------------------------------------------------------------
+
+model DemoSession {
+  id             String          @id
+  createdAt      DateTime        @default(now())
+  simulatedNow   DateTime        @default(now())
+  claims         ClaimCase[]
+  consentRecords ConsentRecord[]
+}
+
+// ---------------------------------------------------------------------------
+// Claim
+// ---------------------------------------------------------------------------
+
+model ClaimCase {
+  id                   String   @id @default(cuid())
+  reference            String   @unique
+  sessionId            String
+  session              DemoSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Seeded demo scenario id (SCENARIO_A | SCENARIO_B | SCENARIO_C_PARTIAL |
+  // SCENARIO_C_REJECTION), or null for a user-created claim.
+  scenario             String?
+
+  // Intake facts — "I don't know" is stored as "" or null; agents treat
+  // missing values as missing information, never invent them.
+  customerName         String
+  patientRelation      String?
+  policyHolderName     String
+  policyNumber         String
+  insurerName          String
+  productName          String
+  route                String // REIMBURSEMENT | CASHLESS
+  hospitalName         String
+  hospitalEmail        String?
+  treatmentDescription String
+  diagnosis            String?
+  admissionDate        DateTime?
+  dischargeDate        DateTime?
+  icdCode              String?
+  claimedAmountPaise   Int
+
+  // Workflow state machine state.
+  state                String   @default("DRAFT")
+  currentBlocker       String?
+  nextBestAction       String?
+  responsibleParty     String?
+
+  // Settlement / rejection facts (set by mock insurer responses).
+  settledAmountPaise   Int?
+  settlementSummary    String?
+  mockExternalRef      String?
+  lastSubmittedActionId String?
+
+  documents     UploadedDocument[]
+  policyClauses PolicyClause[]
+  evidence      EvidenceReference[]
+  agentRuns     AgentRun[]
+  events        ClaimEvent[]
+  tasks         Task[]
+  outboundActions OutboundAction[]
+  approvals     Approval[]
+  mockLogs      MockIntegrationLog[]
+}
+
+// ---------------------------------------------------------------------------
+// Documents, extraction, policy clauses, evidence
+// ---------------------------------------------------------------------------
+
+model UploadedDocument {
+  id               String   @id @default(cuid())
+  caseId           String
+  claimCase        ClaimCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  sessionId        String
+  originalName     String
+  storedName       String
+  mimeType         String
+  sizeBytes        Int
+  docType          String // POLICY | ITEMISED_BILL | PAYMENT_RECEIPT | DISCHARGE_SUMMARY | PRE_AUTH_REQUEST | FINAL_AUTH_REQUEST | SETTLEMENT_STATEMENT | REJECTION_LETTER | QUERY_LETTER | CLAIM_FORM | ID_PROOF | OTHER
+  sha256           String
+  isFixture        Boolean  @default(false)
+  pageCount        Int?
+  extractionStatus String   @default("NOT_ATTEMPTED") // NOT_ATTEMPTED | EXTRACTED | FAILED | MANUAL_ONLY
+  extractionMethod String? // PDFJS | TEXT | NONE
+  extractedText    String?
+  provenanceNote   String?
+  createdAt        DateTime @default(now())
+
+  fields ExtractedField[]
+
+  // Duplicate detection: the same file cannot count twice per case.
+  @@unique([caseId, sha256])
+}
+
+model ExtractedField {
+  id         String   @id @default(cuid())
+  documentId String
+  document   UploadedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  fieldKey   String // patientName | policyNumber | hospitalName | totalAmountPaise | admissionDate | dischargeDate | billDate | ...
+  value      String
+  source     String   @default("EXTRACTED") // EXTRACTED | MANUAL | SEED
+  edited     Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([documentId, fieldKey])
+}
+
+model PolicyClause {
+  id         String   @id @default(cuid())
+  caseId     String
+  claimCase  ClaimCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  documentId String
+  clauseId   String // e.g. "§6.1"
+  title      String
+  text       String
+  page       Int
+  createdAt  DateTime @default(now())
+
+  @@unique([caseId, documentId, clauseId])
+}
+
+model EvidenceReference {
+  id               String   @id @default(cuid())
+  caseId           String
+  claimCase        ClaimCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  agentRunId       String?
+  kind             String // POLICY_CLAUSE | DOCUMENT_FIELD | SYSTEM_RULE | EXTERNAL_RECORD
+  title            String
+  documentId       String?
+  clauseId         String?
+  page             Int?
+  excerpt          String
+  extractionStatus String
+  createdAt        DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Agent execution and outputs
+// ---------------------------------------------------------------------------
+
+model AgentRun {
+  id           String   @id @default(cuid())
+  caseId       String
+  claimCase    ClaimCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  agentName    String
+  status       String   @default("QUEUED") // QUEUED | RUNNING | COMPLETED | BLOCKED | FAILED
+  triggerEvent String
+  startedAt    DateTime?
+  endedAt      DateTime?
+  summary      String?
+  error        String?
+  inputDigest  String?
+  toolsJson    String? // JSON array: [{tool, status, detail, at}]
+  nextAgent    String?
+  outputs      AgentOutput[]
+}
+
+model AgentOutput {
+  id          String   @id @default(cuid())
+  runId       String
+  agentRun    AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  payloadJson String // Zod-validated AgentOutput JSON
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Events, tasks, outbound actions, approvals
+// ---------------------------------------------------------------------------
+
+model ClaimEvent {
+  id          String   @id @default(cuid())
+  caseId      String
+  claimCase   ClaimCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type        String // CASE_CREATED | DOCUMENT_ADDED | INFORMATION_UPDATED | ANALYSIS_REQUESTED | ACTION_APPROVED | ACTION_CANCELLED | MOCK_STATUS_RECEIVED | SIMULATED_TIME_ADVANCED | ...
+  summary     String
+  actor       String // USER | AGENT | MOCK_INSURER | SYSTEM
+  simulatedAt DateTime
+  evidenceIds String? // JSON array of EvidenceReference ids
+  metadataJson String?
+  createdAt   DateTime @default(now())
+}
+
+model Task {
+  id               String   @id @default(cuid())
+  caseId           String
+  claimCase        ClaimCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  title            String
+  description      String?
+  status           String   @default("OPEN") // OPEN | DONE | CANCELLED
+  responsibleParty String // CUSTOMER | HOSPITAL | INSURER | TPA | BROKER
+  source           String   @default("AGENT") // AGENT | USER | SYSTEM
+  dueAt            DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime @default(now())
+}
+
+model OutboundAction {
+  id                   String   @id @default(cuid())
+  caseId               String
+  claimCase            ClaimCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type                 String // DOCUMENT_REQUEST | CLAIM_SUBMISSION | REMINDER | ESCALATION | CLARIFICATION | GRIEVANCE
+  title                String
+  purpose              String
+  recipient            String // CUSTOMER | HOSPITAL | INSURER | TPA | BROKER
+  recipientName        String?
+  message              String
+  dataSharedJson       String? // JSON summary of what is shared (shown in review UI)
+  attachmentDocIdsJson String? // JSON array of UploadedDocument ids
+  draftVersion         Int      @default(1)
+  status               String   @default("DRAFT") // DRAFT | READY_FOR_APPROVAL | APPROVED | CANCELLED | SENT | FAILED
+  idempotencyKey       String? // set once, prevents duplicate sends
+  sentAt               DateTime?
+  mockRef              String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Approval {
+  id          String   @id @default(cuid())
+  caseId      String
+  claimCase   ClaimCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  actionId    String?
+  outboundAction OutboundAction? @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  scope       String // DOCUMENT_REQUEST | CLAIM_SUBMISSION | REMINDER | ESCALATION | CLARIFICATION | GRIEVANCE
+  draftVersion Int
+  status      String   @default("PENDING") // PENDING | APPROVED | CANCELLED | SUPERSEDED
+  decidedAt   DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Mock insurer integration log
+// ---------------------------------------------------------------------------
+
+model MockIntegrationLog {
+  id           String   @id @default(cuid())
+  caseId       String
+  claimCase    ClaimCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  direction    String // REQUEST | RESPONSE
+  endpoint     String
+  requestJson  String?
+  responseJson String?
+  statusCode   Int?
+  latencyMs    Int?
+  simulatedAt  DateTime
+  createdAt    DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Consent (session-scoped, per purpose)
+// ---------------------------------------------------------------------------
+
+model ConsentRecord {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   DemoSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  purpose   String // VOICE_TRANSCRIPTION | TRANSLATION | TEXT_TO_SPEECH | GROUNDED_GENERATION
+  status    String   @default("GRANTED") // GRANTED | WITHDRAWN
+  version   Int      @default(1)
+  detail    String // human-readable description of what is shared
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, purpose])
+}

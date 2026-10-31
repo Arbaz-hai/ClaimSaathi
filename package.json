@@ -1,0 +1,73 @@
+{
+  "name": "claimsathi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ClaimSaathi — multilingual, multi-agent health insurance claims assistant (Sarvam AI powered, demo-first).",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:setup": "prisma migrate deploy && prisma generate && tsx scripts/generate-fixtures.ts",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
+    "fixtures": "tsx scripts/generate-fixtures.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:e2e": "cross-env DATABASE_URL=\"file:./e2e.db\" prisma migrate deploy && cross-env DATABASE_URL=\"file:./e2e.db\" playwright test",
+    "test:e2e:ui": "cross-env DATABASE_URL=\"file:./e2e.db\" playwright test --ui",
+    "test:e2e:install": "playwright install chromium",
+    "check": "npm run typecheck && npm run lint && npm run test:unit"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "archiver": "8.0.0",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "0.545.0",
+    "next": "15.5.28",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "4.10.38",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sonner": "2.0.8",
+    "tailwind-merge": "2.6.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/archiver": "6.0.3",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.1.4",
+    "autoprefixer": "10.4.21",
+    "cross-env": "10.1.0",
+    "eslint": "8.57.1",
+    "eslint-config-next": "15.5.28",
+    "postcss": "8.5.6",
+    "prisma": "6.19.3",
+    "tailwindcss": "3.4.19",
+    "tailwindcss-animate": "1.0.7",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "sharp",
+      "@tailwindcss/oxide"
+    ]
+  }
+}
