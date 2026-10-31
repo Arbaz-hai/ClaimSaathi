@@ -196,7 +196,7 @@ export const actionEditPayloadSchema = actionDraftPayloadSchema.partial();
 export type ActionEditPayload = z.infer<typeof actionEditPayloadSchema>;
 
 export const demoTriggerSchema = z.object({
-  kind: z.enum(['QUERY', 'STATUS_UPDATE', 'PARTIAL_SETTLEMENT', 'REJECTION']),
+  kind: z.enum(['QUERY', 'STATUS_UPDATE', 'PARTIAL_SETTLEMENT', 'REJECTION', 'DEMO_CREDIT']),
 });
 export type DemoTriggerPayload = z.infer<typeof demoTriggerSchema>;
 

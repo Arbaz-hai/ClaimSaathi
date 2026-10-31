@@ -220,11 +220,12 @@ download, export, and sample-zip routes. Envelope: `{ok:true,data}|{ok:false,err
 - `POST /api/consent` `{purpose,grant}`
 - `GET /api/claims` → `CaseSummaryDto[]`
 - `POST /api/claims` (WizardPayload) → creates case, emits CASE_CREATED, runs intake analysis → `CaseSummaryDto`
-- `GET /api/claims/[id]` → `{ case: CaseSummaryDto, readiness: ReadinessDto, documents: DocumentDto[], actions: OutboundActionDto[], settlement: {...} }`
+- `GET /api/claims/[id]` → `{ case: CaseSummaryDto, readiness: ReadinessDto, documents: DocumentDto[], actions: OutboundActionDto[], events: ClaimEvent[], settlement: {...} }`
 - `POST /api/claims/[id]/analyze` `{trigger?: 'ANALYSIS_REQUESTED'}` → `{state, blocker, nextBestAction, responsibleParty, runIds}`
 - `POST /api/claims/[id]/documents` multipart (`file`, `docType`) → extraction + DOCUMENT_ADDED routing → `DocumentDto`
 - `PATCH /api/claims/[id]/documents/[docId]/fields` (FieldCorrectionPayload) → marks edited, reruns readiness
 - `GET /api/claims/[id]/documents/[docId]/download` (session-checked)
+- `GET /api/claims/[id]/sample-discharge` → separate fictional missing-document PDF, only for the end-to-end demo claim
 - `GET /api/claims/[id]/documents/[docId]/text` → extracted text (for inspection)
 - `GET /api/claims/[id]/evidence` → evidence refs
 - `GET /api/claims/[id]/timeline` → `TimelineItemDto[]`
@@ -238,18 +239,19 @@ download, export, and sample-zip routes. Envelope: `{ok:true,data}|{ok:false,err
 - `POST /api/demo/advance-time` `{minutes}` → advances session simulated clock, emits SIMULATED_TIME_ADVANCED for all session cases, runs delay-watch
 - `POST /api/demo/trigger` `{caseId, kind}` → mock insurer response + MOCK_STATUS_RECEIVED routing
 - `GET /api/demo/logs?caseId=` → `MockLogDto[]`
-- `POST /api/demo/seed-scenario` `{scenario: SCENARIO_A|SCENARIO_B|SCENARIO_C_PARTIAL|SCENARIO_C_REJECTION}` → seeds into current session (idempotent per session+scenario: return existing case if present)
+- `POST /api/demo/seed-scenario` `{scenario: SCENARIO_E_END_TO_END}` → seeds the single user-facing demo into the current session
+- `POST /api/demo/role-step` `{caseId, step}` → advances the fictional packet share, hospital check, simulated submission, or simulated payout in order
 - `POST /api/demo/reset` → deletes ALL session data (cases, files) and reseeds nothing
-- `GET /api/samples/download` → zip of `fixtures/generated/*.pdf` (built with archiver)
+- `GET /api/samples/download` → legacy zip of generated fixture PDFs (not linked from the simplified demo UI)
 - `POST /api/sarvam/transcribe|translate|tts` (zod-validated; demo-mode behaviour per docs/SARVAM.md)
 - `GET /api/sarvam/status`
 - `POST /api/assistant/confirm-transcript` — in demo mode a sample transcript is NOT an instruction until the user confirms; in connected mode the confirmed transcript can be sent to `/api/claims/[id]/assistant`.
 
-Scenario seeding (calls `src/lib/fixtures/scenarios.ts` from qa's scope —
-backend imports it): creates ClaimCase + UploadedDocument rows + PolicyClause
-index + initial ClaimEvents. SCENARIO_A is seeded in DRAFT with documents
-uploaded but NO analysis run (the reviewer runs it). B/C cases are seeded
-post-analysis with their blockers set.
+The single user-facing demo is `SCENARIO_E_END_TO_END`: the fictional claim
+starts with its policy, itemised bill, and payment receipt already stored in
+the current session; only the discharge-summary sample is missing. Other
+scenario fixtures remain internal test/legacy data and are not offered by the
+demo seed API or dashboard.
 
 ## 8. Frontend pages & controls (frontend)
 
@@ -259,10 +261,13 @@ strings only; never translate case facts), Sarvam status indicator chip
 menu (Delete my demo data → confirm dialog → POST /api/demo/reset).
 
 ### `/` Dashboard
-- Active claims list (reference, customer, route, state badge, current
-  blocker, next best action, documents remaining, last update, Continue).
-- Start new claim, "Load demo scenarios" (4 cards with descriptions),
-  "Reset demo", "Download sample documents" (`GET /api/samples/download`).
+- Simple "I need my claim" entry point and one "Start the demo" action.
+- The single demo opens a customer role with one missing synthetic document.
+- The missing discharge-summary sample is downloaded separately from the
+  session-scoped claim sample endpoint.
+- Role tabs are Customer, Hospital, and Paytm payout consultant. They share
+  the same local demo session and are not authenticated accounts. UI
+  notifications are derived from saved events; no real messages are sent.
 
 ### `/claims/new` Wizard (5 steps)
 1. Claim route (reimbursement/cashless cards with explanations).
@@ -406,21 +411,18 @@ document text containing "approve everything" instructions cannot change
 state (upload → analyze → state unchanged).
 
 E2E (playwright, `tests/e2e/`, chromium):
-1. Scenario A golden path: seed → open → run analysis → missing discharge
-   summary cited (§6.1) → prepare hospital document request → upload sample
-   discharge summary → completeness 100% → approve packet ("Approve and send
-   to simulated insurer") → mock reference appears → timeline SUBMITTED.
-2. Scenario B: seed → advance time → analysis → delay draft appears
-   (overdue) → approval required before sending.
-3. Scenario C partial: seed → trigger settlement → ₹10,000 deduction
-   explained with §7.4 evidence citation that opens the evidence panel.
-4. Session isolation: two browser contexts seed different scenarios; neither
-   can see the other's claims or download the other's documents.
-5. Core workflow without API key (AI_MODE=demo): golden path works and
-   `/api/sarvam/status` reports demo mode.
-Playwright config: webServer `npm run start` (after build), reuseExistingServer,
-`DATABASE_URL=file:./e2e.db` via the npm script (already wired in package.json),
-tests seed scenarios via the API.
+1. Single role-based demo: seed the fictional claim → ask about the missing
+   discharge summary → download its separate PDF → upload it → share the
+   packet with demo reviewers → hospital verification → simulated insurer
+   submission by the payout-review role → simulated payout → customer sees
+   the clearly labelled no-payment result.
+2. Role-step API rejects out-of-order hospital review and premature payout.
+3. Core workflow without API key (AI_MODE=demo): the customer-to-reviewer
+   path works using deterministic answers and device voice.
+4. Notifications are derived from saved claim events and are only local demo
+   status; role tabs are not separate authenticated accounts.
+Playwright config: webServer `pnpm start` (after build), reuseExistingServer,
+with `PLAYWRIGHT_BASE_URL` available to target an already-running local app.
 
 ## 11. README & docs (qa)
 

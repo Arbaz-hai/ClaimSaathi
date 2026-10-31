@@ -9,16 +9,16 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "db:setup": "prisma migrate deploy && prisma generate && tsx scripts/generate-fixtures.ts",
+    "db:setup": "prisma migrate deploy && prisma generate --no-engine && tsx scripts/generate-fixtures.ts",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "fixtures": "tsx scripts/generate-fixtures.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:e2e": "cross-env DATABASE_URL=\"file:./e2e.db\" prisma migrate deploy && cross-env DATABASE_URL=\"file:./e2e.db\" playwright test",
+    "test:e2e": "pnpm run db:setup && playwright test",
     "test:e2e:ui": "cross-env DATABASE_URL=\"file:./e2e.db\" playwright test --ui",
     "test:e2e:install": "playwright install chromium",
-    "check": "npm run typecheck && npm run lint && npm run test:unit"
+    "check": "pnpm run typecheck && pnpm exec eslint . && pnpm run test:unit"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

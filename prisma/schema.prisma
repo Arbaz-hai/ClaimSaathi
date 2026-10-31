@@ -39,8 +39,7 @@ model ClaimCase {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  // Seeded demo scenario id (SCENARIO_A | SCENARIO_B | SCENARIO_C_PARTIAL |
-  // SCENARIO_C_REJECTION), or null for a user-created claim.
+  // Seeded demo scenario id, or null for a user-created claim.
   scenario             String?
 
   // Intake facts — "I don't know" is stored as "" or null; agents treat

@@ -20,6 +20,7 @@ export const CLAIM_STATES = [
   'QUERY_RECEIVED',
   'UNDER_REVIEW',
   'PARTIALLY_SETTLED',
+  'SETTLED',
   'REJECTED',
   'CLOSED',
 ] as const;
